@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buy vs. Rent Calculator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            padding: 20px;
+            max-width: 1200px;
+            margin: auto;
+            color: #333;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+        }
+        @media(min-width: 1024px) {
+            .container {
+                flex-direction: row;
+                justify-content: space-between;
+            }
+        }
+        .calculator {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 500px;
+        }
+        .calculator input, .calculator select {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 1em;
+        }
+        .calculator button {
+            width: 100%;
+            padding: 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            margin-top: 20px;
+        }
+        .calculator button:hover {
+            background-color: #45a049;
+        }
+        .result-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px;
+            background-color: #f4f4f4;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .result-container .result {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        .chart-container {
+            width: 50%;
+            max-width: 300px;
+        }
+        .breakdown {
+            width: 50%;
+            padding-left: 20px;
+        }
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+        .breakdown-item .color-box {
+            width: 15px;
+            height: 15px;
+            margin-right: 10px;
+            display: inline-block;
+            border-radius: 3px;
+        }
+        .breakdown-item .amount {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Buy vs. Rent Calculator</h1>
+
+    <div class="container">
+        <!-- Mortgage Calculator -->
+        <div class="calculator">
+            <h2>Mortgage Calculator</h2>
+            <label for="price">Price of House ($):</label>
+            <input type="number" id="price" placeholder="e.g. 300000" value="300000">
+
+            <label for="downpayment">Downpayment Percentage (%):</label>
+            <select id="downpayment">
+                <option value="5">5%</option>
+                <option value="10">10%</option>
+                <option value="15">15%</option>
+                <option value="20" selected>20%</option>
+                <option value="25">25%</option>
+                <option value="30">30%</option>
+            </select>
+
+            <label for="interest">Annual Interest Rate (%):</label>
+            <input type="number" id="interest" placeholder="e.g. 5" value="5">
+
+            <label for="term">Loan Term (years):</label>
+            <select id="term">
+                <option value="15">15 years</option>
+                <option value="20">20 years</option>
+                <option value="25">25 years</option>
+                <option value="30" selected>30 years</option>
+            </select>
+
+            <label for="monthly-rent">Monthly Rent ($):</label>
+            <input type="number" id="monthly-rent" placeholder="e.g. 3000" value="3000">
+
+            <label for="appreciation">Yearly Appreciation (%):</label>
+            <input type="number" id="appreciation" placeholder="e.g. 6" value="6">
+
+            <div class="slider-container">
+                <label for="taxes">Property Taxes (% per year):</label>
+                <input type="range" id="taxes" min="0" max="2.5" step="0.1" value="1.5" oninput="updateTaxValue(this.value)">
+                <span id="taxes-value">1.5%</span>
+            </div>
+
+            <div class="slider-container">
+                <label for="insurance">Homeowner's Insurance (% per year):</label>
+                <input type="range" id="insurance" min="0" max="2" step="0.1" value="1" oninput="updateInsuranceValue(this.value)">
+                <span id="insurance-value">1%</span>
+            </div>
+
+            <button onclick="calculateMortgage()">Calculate Monthly Payment</button>
+
+            <div class="result-container">
+                <div class="chart-container">
+                    <canvas id="mortgage-donut-chart"></canvas>
+                </div>
+                <div class="breakdown">
+                    <div class="breakdown-item">
+                        <div><span class="color-box" style="background-color: #4CAF50;"></span>Principal & Interest</div>
+                        <div class="amount" id="principal-amount">$0</div>
+                    </div>
+                    <div class="breakdown-item">
+                        <div><span class="color-box" style="background-color: #FF9800;"></span>Property Tax</div>
+                        <div class="amount" id="taxes-amount">$0</div>
+                    </div>
+                    <div class="breakdown-item">
+                        <div><span class="color-box" style="background-color: #673AB7;"></span>Insurance</div>
+                        <div class="amount" id="insurance-amount">$0</div>
+                    </div>
+                    <div class="breakdown-item">
+                        <div><span class="color-box" style="background-color: #FFC107;"></span>Total Monthly Mortgage</div>
+                        <div class="amount" id="total-monthly-mortgage">$0</div>
+                    </div>
+                    <div class="breakdown-item">
+                        <div><strong>Total Mortgage Paid:</strong></div>
+                        <div class="amount" id="total-mortgage-paid">$0</div>
+                    </div>
+                    <div class="breakdown-item">
+                        <div><strong>House Value:</strong></div>
+                        <div class="amount" id="house-value">$0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Investment Returns Calculator -->
+        <div class="calculator">
+            <h2>Investment Returns Calculator</h2>
+            <label for="principal">How much do you have saved currently? ($):</label>
+            <input type="number" id="principal" placeholder="e.g. 10000" value="10000">
+
+            <label for="years">How many years will you save for?:</label>
+            <input type="number" id="years" placeholder="e.g. 10" value="10">
+
+            <label for="rate">What's your rate of return? (%):</label>
+            <input type="number" id="rate" placeholder="e.g. 5" value="5">
+
+            <label for="contribution">How much extra will you contribute? ($):</label>
+            <input type="number" id="contribution" placeholder="e.g. 50" value="50">
+
+            <label for="contribution-frequency">How often will you contribute?</label>
+            <select id="contribution-frequency">
+                <option value="12" selected>Per month</option>
+                <option value="4">Per quarter</option>
+                <option value="1">Per year</option>
+            </select>
+
+            <label for="times">How often will your interest compound?</label>
+            <select id="times">
+                <option value="1">Compound annually</option>
+                <option value="2">Compound semi-annually</option>
+                <option value="4">Compound quarterly</option>
+                <option value="12" selected>Compound monthly</option>
+                <option value="365">Compound daily</option>
+            </select>
+
+            <button onclick="calculateCompoundInterest()">Calculate</button>
+
+            <div class="result-container">
+                <div class="chart-container">
+                    <canvas id="compound-donut-chart"></canvas>
+                </div>
+                <div class="breakdown">
+                    <div class="breakdown-item">
+                        <div><span class="color-box" style="background-color: #4CAF50;"></span>Total Amount Contributed</div>
+                        <div class="amount" id="total-contributed">$0</div>
+                    </div>
+                    <div class="breakdown-item">
+                        <div><span class="color-box" style="background-color: #FF9800;"></span>Total Interest Earned</div>
+                        <div class="amount" id="total-interest">$0</div>
+                    </div>
+                    <div class="breakdown-item">
+                        <div><strong>Total Value:</strong></div>
+                        <div class="amount" id="total-value">$0</div>
+                    </div>
+                </div>
+            </div>
+
+            <canvas id="compound-line-chart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Mortgage Calculator
+        let mortgageDonutChart;
+        function updateTaxValue(value) {
+            document.getElementById('taxes-value').innerText = value + '%';
+        }
+
+        function updateInsuranceValue(value) {
+            document.getElementById('insurance-value').innerText = value + '%';
+        }
+        
+        function formatNumber(num) {
+            if (num >= 1e9) {
+                return (num / 1e9).toFixed(1) + 'B';
+            } else if (num >= 1e6) {
+                return (num / 1e6).toFixed(1) + 'M';
+            } else if (num >= 1e3) {
+                return (num / 1e3).toFixed(1) + 'K';
+            } else {
+                return num.toString();
+            }
+        }
+
+        function calculateMortgage() {
+            let price = parseFloat(document.getElementById('price').value);
+            let downpaymentPercentage = parseFloat(document.getElementById('downpayment').value);
+            let interest = parseFloat(document.getElementById('interest').value);
+            let term = parseFloat(document.getElementById('term').value);
+            let taxes = parseFloat(document.getElementById('taxes').value || 1.5);
+            let insurance = parseFloat(document.getElementById('insurance').value || 1);
+            let monthlyRent = parseFloat(document.getElementById('monthly-rent').value);
+            let appreciation = parseFloat(document.getElementById('appreciation').value) / 100;
+
+            let downpayment = (downpaymentPercentage / 100) * price;
+            let loanAmount = price - downpayment;
+            let monthlyInterestRate = interest / 100 / 12;
+            let numberOfPayments = term * 12;
+
+            let monthlyPrincipalInterest = loanAmount * (monthlyInterestRate * Math.pow(1 + monthlyInterestRate, numberOfPayments)) / (Math.pow(1 + monthlyInterestRate, numberOfPayments) - 1);
+
+            let monthlyTaxes = (taxes / 100) * price / 12;
+            let monthlyInsurance = (insurance / 100) * price / 12;
+
+            let totalMonthlyMortgage = monthlyPrincipalInterest + monthlyTaxes + monthlyInsurance;
+            let extraAmountSaved = totalMonthlyMortgage - monthlyRent; // Difference (could be negative)
+
+            // Calculate total mortgage paid over the term
+            let totalMortgagePaid = totalMonthlyMortgage * numberOfPayments;
+
+            // Calculate the house value at the end of the loan tenure
+            let houseValue = price * Math.pow(1 + appreciation, term);
+
+            // Update the breakdown amounts
+            document.getElementById('principal-amount').innerText = `$${monthlyPrincipalInterest.toFixed(0)}`;
+            document.getElementById('taxes-amount').innerText = `$${monthlyTaxes.toFixed(0)}`;
+            document.getElementById('insurance-amount').innerText = `$${monthlyInsurance.toFixed(0)}`;
+            document.getElementById('total-monthly-mortgage').innerText = `$${totalMonthlyMortgage.toFixed(0)}`;
+            document.getElementById('total-mortgage-paid').innerText = `$${formatNumber(totalMortgagePaid.toFixed(0))}`;
+            document.getElementById('house-value').innerText = `$${formatNumber(houseValue.toFixed(0))}`;
+
+            // Set derived values in the Investment Returns Calculator
+            document.getElementById('principal').value = downpayment.toFixed(0);
+            document.getElementById('years').value = term; // Set years equal to loan term
+            document.getElementById('contribution').value = extraAmountSaved.toFixed(0);
+
+            // Update the mortgage chart
+            updateMortgageChart(monthlyPrincipalInterest, monthlyTaxes, monthlyInsurance, totalMonthlyMortgage);
+        }
+
+        function updateMortgageChart(principal, taxes, insurance, totalMonthlyMortgage) {
+            const data = {
+                labels: ['Principal & Interest', 'Property Tax', 'Insurance'],
+                datasets: [{
+                    data: [principal, taxes, insurance],
+                    backgroundColor: ['#4CAF50', '#FF9800', '#673AB7'],
+                    hoverOffset: 4
+                }]
+            };
+
+            if (mortgageDonutChart) {
+                mortgageDonutChart.destroy();
+            }
+
+            const ctx = document.getElementById('mortgage-donut-chart').getContext('2d');
+            mortgageDonutChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: data,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Compound Interest Calculator
+        let compoundDonutChart;
+        let compoundLineChart;
+
+        function calculateCompoundInterest() {
+            let principal = parseFloat(document.getElementById('principal').value);
+            let rate = parseFloat(document.getElementById('rate').value) / 100;
+            let times = parseInt(document.getElementById('times').value);
+            let years = parseFloat(document.getElementById('years').value);
+            let contribution = parseFloat(document.getElementById('contribution').value);
+            let contributionFrequency = parseInt(document.getElementById('contribution-frequency').value);
+
+            let totalContributed = principal + (contribution * contributionFrequency * years);
+            let futureValue = principal * Math.pow((1 + rate / times), times * years);
+
+            for (let i = 1; i <= years * contributionFrequency; i++) {
+                futureValue += contribution * Math.pow((1 + rate / times), times * (years - i / contributionFrequency));
+            }
+
+            let totalInterest = futureValue - totalContributed;
+            let totalValue = futureValue;
+
+            // Update the breakdown amounts
+            document.getElementById('total-contributed').innerText = `$${formatNumber(totalContributed.toFixed(0))}`;
+            document.getElementById('total-interest').innerText = `$${formatNumber(totalInterest.toFixed(0))}`;
+            document.getElementById('total-value').innerText = `$${formatNumber(totalValue.toFixed(0))}`;
+
+            // Update the compound interest donut chart
+            updateCompoundDonutChart(totalContributed, totalInterest);
+
+            // Update the compound interest line chart
+            updateCompoundLineChart(principal, contribution, rate, times, years, contributionFrequency);
+        }
+
+        function updateCompoundDonutChart(contributed, interest) {
+            const data = {
+                labels: ['Total Amount Contributed', 'Total Interest Earned'],
+                datasets: [{
+                    data: [contributed, interest],
+                    backgroundColor: ['#4CAF50', '#FF9800'],
+                    hoverOffset: 4
+                }]
+            };
+
+            if (compoundDonutChart) {
+                compoundDonutChart.destroy();
+            }
+
+            const ctx = document.getElementById('compound-donut-chart').getContext('2d');
+            compoundDonutChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: data,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCompoundLineChart(principal, contribution, rate, times, years, contributionFrequency) {
+            let labels = [];
+            let data = [];
+            let currentValue = principal;
+
+            for (let i = 0; i <= years; i++) {
+                if (i > 0) {
+                    for (let j = 1; j <= contributionFrequency; j++) {
+                        currentValue += contribution;
+                        currentValue *= Math.pow((1 + rate / times), times / contributionFrequency);
+                    }
+                }
+                labels.push(i);
+                data.push(currentValue.toFixed(2));
+            }
+
+            const lineData = {
+                labels: labels,
+                datasets: [{
+                    label: 'Balance by year',
+                    data: data,
+                    fill: false,
+                    borderColor: '#42A5F5',
+                    tension: 0.1
+                }]
+            };
+
+            if (compoundLineChart) {
+                compoundLineChart.destroy();
+            }
+
+            const ctx = document.getElementById('compound-line-chart').getContext('2d');
+            compoundLineChart = new Chart(ctx, {
+                type: 'line',
+                data: lineData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initial chart rendering with zero values
+        updateMortgageChart(0, 0, 0, 0);
+        updateCompoundDonutChart(0, 0);
+    </script>
+
+</body>
+</html>
